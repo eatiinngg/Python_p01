@@ -1,77 +1,112 @@
-class Person(object):
-    """人"""
+from enum import Enum, unique
+from math import sqrt
+from random import randint
 
-    def __init__(self, name, age):
-        self._name = name
-        self._age = age
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def age(self):
-        return self._age
-
-    @age.setter
-    def age(self, age):
-        self._age = age
-
-    def play(self):
-        print('%s正在愉快的玩耍.' % self._name)
-
-    def watch_av(self):
-        if self._age >= 18:
-            print('%s正在觀看愛情動作片.' % self._name)
-        else:
-            print('%s只能觀看《熊出沒》.' % self._name)
+import pygame
 
 
-class Student(Person):
-    """學生"""
+@unique
+class Color(Enum):
+    """顏色"""
 
-    def __init__(self, name, age, grade):
-        super().__init__(name, age)
-        self._grade = grade
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    BLACK = (0, 0, 0)
+    WHITE = (255, 255, 255)
+    GRAY = (242, 242, 242)
 
-    @property
-    def grade(self):
-        return self._grade
-
-    @grade.setter
-    def grade(self, grade):
-        self._grade = grade
-
-    def study(self, course):
-        print('%s的%s正在學習%s.' % (self._grade, self._name, course))
+    @staticmethod
+    def random_color():
+        """獲得隨機顏色"""
+        r = randint(0, 255)
+        g = randint(0, 255)
+        b = randint(0, 255)
+        return (r, g, b)
 
 
-class Teacher(Person):
-    """老師"""
+class Ball(object):
+    """球"""
 
-    def __init__(self, name, age, title):
-        super().__init__(name, age)
-        self._title = title
+    def __init__(self, x, y, radius, sx, sy, color=Color.RED):
+        """初始化方法"""
+        self.x = x
+        self.y = y
+        self.radius = radius
+        self.sx = sx
+        self.sy = sy
+        self.color = color
+        self.alive = True
 
-    @property
-    def title(self):
-        return self._title
+    def move(self, screen):
+        """移動"""
+        self.x += self.sx
+        self.y += self.sy
+        if self.x - self.radius <= 0 or \
+                self.x + self.radius >= screen.get_width():
+            self.sx = -self.sx
+        if self.y - self.radius <= 0 or \
+                self.y + self.radius >= screen.get_height():
+            self.sy = -self.sy
 
-    @title.setter
-    def title(self, title):
-        self._title = title
+    def eat(self, other):
+        """吃其他球"""
+        if self.alive and other.alive and self != other:
+            dx, dy = self.x - other.x, self.y - other.y
+            distance = sqrt(dx ** 2 + dy ** 2)
+            if distance < self.radius + other.radius \
+                    and self.radius > other.radius:
+                other.alive = False
+                self.radius = self.radius + int(other.radius * 0.146)
 
-    def teach(self, course):
-        print('%s%s正在講%s.' % (self._name, self._title, course))
+    def draw(self, screen):
+        """在窗口上繪製球"""
+        pygame.draw.circle(screen, self.color,
+                           (self.x, self.y), self.radius, 0)
 
 
 def main():
-    stu = Student('王大錘', 15, '初三')
-    stu.study('數學')
-    stu.watch_av()
-    t = Teacher('駱昊', 38, '磚家')
-    t.teach('Python程序設計')
-    t.watch_av()
+    # 定義用來裝所有球的容器
+    balls = []
+    # 初始化導入的pygame中的模塊
+    pygame.init()
+    # 初始化用於顯示的窗口並設置窗口尺寸
+    screen = pygame.display.set_mode((800, 600))
+    # 設置當前窗口的標題
+    pygame.display.set_caption('大球吃小球')
+    running = True
+    # 開啟一個事件循環處理髮生的事件
+    while running:
+        # 從消息隊列中獲取事件並對事件進行處理
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            # 處理鼠標事件的代碼
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # 獲得點擊鼠標的位置
+                x, y = event.pos
+                radius = randint(10, 100)
+                sx, sy = randint(-10, 10), randint(-10, 10)
+                color = Color.random_color()
+                # 在點擊鼠標的位置創建一個球(大小、速度和顏色隨機)
+                ball = Ball(x, y, radius, sx, sy, color)
+                # 將球添加到列表容器中
+                balls.append(ball)
+        screen.fill((255, 255, 255))
+        # 取出容器中的球 如果沒被吃掉就繪製 被吃掉了就移除
+        for ball in balls:
+            if ball.alive:
+                ball.draw(screen)
+            else:
+                balls.remove(ball)
+        pygame.display.flip()
+        # 每隔50毫秒就改變球的位置再刷新窗口
+        pygame.time.delay(10)
+        for ball in balls:
+            ball.move(screen)
+            # 檢查球有沒有吃到其他的球
+            for other in balls:
+                ball.eat(other)
 
 
 if __name__ == '__main__':
